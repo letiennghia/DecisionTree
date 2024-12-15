@@ -273,8 +273,8 @@ tuple<double, int, int,vector<Data>,vector<Data>> crossValidation(vector<Data> d
 
 
 int main(){
-      vector<Data> data=read_data("train.txt");
-      vector<Data> test_data=read_data("test.txt");
+      vector<Data> data=read_data("Data/");
+      vector<Data> test_data=read_data("Data/");
       Node *root=nullptr;
       double maxF1Score=0.0, max_depth=0, min_size=0;
       vector<Data> goodTrainData, goodTestData;
