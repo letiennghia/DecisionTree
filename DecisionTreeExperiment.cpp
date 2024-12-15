@@ -1,5 +1,5 @@
 #include<bits/stdc++.h>
-
+#include <windows.h>
 #include <random>
 using namespace std;
 constexpr int numFeat=4;
@@ -269,26 +269,37 @@ tuple<double, int, int,vector<Data>,vector<Data>> crossValidation(vector<Data> d
       cout << "Best max_depth: " << best_max_depth << endl;
       cout << "Best min_size: " << best_min_size << endl;
       return make_tuple(bestF1Score, best_max_depth, best_min_size,trainData,testData);
-} //Dataset - Classifier Info
+}
 
 
 int main(){
-      vector<Data> data=read_data("train.txt");
+      vector<Data> data=read_data("train"
+                                  "RL.txt");
       vector<Data> test_data=read_data("test.txt");
       Node *root=nullptr;
-      double maxF1Score=0.0, max_depth=0, min_size=0;
-      vector<Data> goodTrainData, goodTestData;
+      double maxF1Score=0.0, max_depth=0, min_size=0,good_gain = 0;
+      vector<Data> goodTrainData;
+      for (int i=0;i<10;i++) {
+            for (minGainVal=0.01; minGainVal<=0.1; minGainVal+=0.01) {
+                  if (tuple<double,int,int,vector<Data>,vector<Data>> result=crossValidation(data); maxF1Score<get<0>(result) ){
+                        maxF1Score = get<0>(result);
+                        good_gain = minGainVal;
+                  }
+            }
+      }
+      cout << "MaxF1Score: " << maxF1Score << endl;
+      cout<<good_gain<<endl;
+      minGainVal = good_gain;
+      Sleep(5000)
       for (int i=0;i<10;i++) {
             if (tuple<double,int,int,vector<Data>,vector<Data>> result=crossValidation(data); maxF1Score<get<0>(result)) {
                   maxF1Score = get<0>(result);
                   max_depth = get<1>(result);
                   min_size = get<2>(result);
                   goodTrainData = get<3>(result);
-                  goodTestData=get<4>(result);
             }
       }
-      buildTree(root,goodTrainData,0,max_depth,min_size);// After this we have one Classifier
-
+      buildTree(root,goodTrainData,0,max_depth,min_size);
       int cnt=1;
       cout<<"Max F1: " << maxF1Score << endl;
       freopen("Predict_labels.csv","w",stdout);
