@@ -291,7 +291,7 @@ int main() {
     // Input data and labels from train_data file
     vector<vector<double>> trainData;
     vector<int> trainLabels;
-    readData("train_data_shuffled.txt", trainData, trainLabels, true);
+    readData("train.txt", trainData, trainLabels, true);
 
     // Parameters
     int maxDepth = 20;

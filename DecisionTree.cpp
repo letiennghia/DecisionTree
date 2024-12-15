@@ -1,9 +1,10 @@
 #include<bits/stdc++.h>
+
+#include <random>
 using namespace std;
 const int numFeat=4;
 const int maxFeatVal=5;
-const double minGainVal=0.06;
-const double split_ratio=0.8;
+const double minGainVal=0.02;
 //build Node
 struct Node{
     int index;
@@ -21,14 +22,8 @@ struct Node{
 };
 //build Data
 struct Data{
-  int feature[numFeat]{};
-  char label='0';
-      Data() {
-            for(int & i : feature) {
-                  i = -1;
-            }
-            label = '0';
-      }
+      char label;
+      int feature[numFeat];
 };
 
 // Calculating entropy function
@@ -40,17 +35,17 @@ double getEntropy(vector<Data> data){
       }
       double entropy = 0;
       for (auto x_i:count_of) {
-            double probability=x_i.second / double (count_of.size());
-            entropy += probability * (log(probability)/log(2));
+            double probability=(double) x_i.second / data.size();
+            entropy -= probability * (log(probability)/log(2));
       }
-      return -entropy;
+      return entropy;
 }
 // Information gain
 double getInfoGain(vector<Data> data,vector<Data> data_left, vector<Data> data_right) {
       if (data_left.empty() || data_right.empty()) {return 0.0;}
-      double ratioLeft = double(data_left.size())/double(data.size());
+      double ratioLeft = (double)data_left.size()/data.size();
       double ratioRight = 1-ratioLeft;
-      //cout<<"Info gain: "<<getEntropy(data)-(getEntropy(data_left)*ratioLeft+getEntropy(data_right)*ratioRight)<<endl;
+
       return getEntropy(data)-(getEntropy(data_left)*ratioLeft+getEntropy(data_right)*ratioRight);
 }
 pair<vector<Data>,vector<Data>> splitData(vector<Data> data,int index, int threshold) {
@@ -73,6 +68,7 @@ char getLabel(vector<Data> &data) {
       char max_label_char = '0';
       for (auto x_i:count_label) {
             if (max_label<x_i.second) {
+                  max_label = x_i.second;
                   max_label_char = x_i.first;
             }
       }
@@ -81,20 +77,27 @@ char getLabel(vector<Data> &data) {
 void buildTree(Node*& parent, vector<Data> data, int depth, int max_depth, int min_size) {
       parent = new Node();
       // Check termination conditions
-      if (depth > max_depth || data.size() < min_size || getEntropy(data) == 0.0) {
+      if (depth >= max_depth || data.size() <= min_size || getEntropy(data) == 0.0) {
             parent->label = getLabel(data);
+            parent->left = NULL;
+            parent->right = NULL;
             return;
       }
 
       vector<Data> data_left, data_right;
-      double maxGain = -100;
+      double maxGain = -10;
       // Find best split
       for (int i = 0; i < numFeat; i++) {
-            for (int j = 1; j <= maxFeatVal; j++) {
+
+            for (int j = 0; j <= maxFeatVal; j++) {
                   pair<vector<Data>, vector<Data>> split_data = splitData(data, i, j);
+                  data_left.clear();
+                  data_right.clear();
                   data_left = split_data.first;
                   data_right = split_data.second;
+                  if (data_left.empty() || data_right.empty()) {continue;}
                   double gainVal = getInfoGain(data, data_left, data_right);
+                  //cout<<gainVal<<endl;
                   if (maxGain < gainVal) {
                         maxGain = gainVal;
                         parent->index = i;
@@ -102,12 +105,9 @@ void buildTree(Node*& parent, vector<Data> data, int depth, int max_depth, int m
                   }
             }
       }
-
-      if (maxGain < minGainVal) {
-            parent->label = getLabel(data);
-            return;
-      }
-
+     // cout << "Building Tree at depth " << depth << ", data size: " << data.size() << endl;
+     // cout << "Best split: index=" << parent->index << " threshold=" << parent->threshold << endl;
+      if ()
       // Split data
       pair<vector<Data>, vector<Data>> split_data = splitData(data, parent->index, parent->threshold);
       data_left = split_data.first;
@@ -115,9 +115,14 @@ void buildTree(Node*& parent, vector<Data> data, int depth, int max_depth, int m
 
       buildTree(parent->left, data_left, depth + 1, max_depth, min_size);
       buildTree(parent->right, data_right, depth + 1, max_depth, min_size);
+      if(parent -> left -> label != '0' && parent -> left -> label == parent -> right -> label){
+            parent->label = parent->left->label;
+            parent->left = NULL;
+            parent->right = NULL;
+      }
 }
 char predict(Node *&parent, Data data) {
-      if (parent -> left == NULL && parent -> right == NULL) {
+      if (parent -> left == NULL) {
             return parent->label;
       }
       if (data.feature[parent->index]<=parent->threshold) {
@@ -134,6 +139,12 @@ map<pair<char,char>, int> buildConfusionMatrix(vector<Data> data, Node *&root) {
             }
             else confussionMatrix[make_pair(prediction,x.label)]++;
       }
+      /*char val[3]={'L','R','B'};
+      for (char c1:val) {
+            for (char c2:val) cout<<confussionMatrix[make_pair(c1,c2)]<<" ";
+            cout<<endl;
+      }
+      cout<<endl;*/
       return confussionMatrix;
 
 }
@@ -180,10 +191,13 @@ double F1_Score(vector<Data> data, Node *&root) {
       return macroF1;
 }
 void printTree(Node *&parent, int depth) {
+      if (parent==NULL) {return;}
       if (parent -> left == NULL||depth>=100) {
             cout<<parent->label<<" "<<depth<<endl;
       }
+      cout<<"L2"<<endl;
       cout<<parent->index<<" "<<parent->threshold<<" "<<parent->label<<endl;
+      cout<<"left"<<endl;
       printTree(parent->left,depth+1);
       printTree(parent->right,depth+1);
 
@@ -222,7 +236,7 @@ vector<Data> read_data(const string &filename) {
       return data;
 }
 void shuffleData(vector<Data> &data) {
-      random_shuffle(data.begin(), data.end());
+      shuffle(data.begin(), data.end(), std::mt19937(std::random_device()()));
 }
 double train_data(vector<Data> &train_data,vector<Data> &test_data, const int&maxDepth,const int&minSize) {
 
@@ -230,56 +244,51 @@ double train_data(vector<Data> &train_data,vector<Data> &test_data, const int&ma
       buildTree(root,train_data,0,maxDepth,minSize);
       return F1_Score(test_data,root);
 }
-tuple<double,int,int> crossValidation(vector<Data> data, const int& k) {
-      shuffleData(data);
+tuple<double, int, int> crossValidation(vector<Data> data) {
+      shuffleData(data);  // Shuffle the data before splitting
       int n = data.size();
-      int foldSize=n/k;
-      double best_solution=0.0;
-      int best_max_depth=0,best_min_size=0;
-      vector<tuple<double,int,int>> foldResult;
-      vector<pair<vector<Data>,vector<Data>>> foldSet;
-      for (int fold=0; fold<k; ++fold) {
-
-            vector<Data> trainData,testData;
-            int startIndex = fold * foldSize;
-            int endIndex = (fold == k - 1) ? n : (fold + 1) * foldSize;
-            for (int i=0; i<n;i++) {
-                  if (i>=startIndex && i<endIndex) {
-                        testData.push_back(data[i]);
+      double best_solution = 0.0;
+      int best_max_depth = 1, best_min_size = 0;
+      double bestF1Score = 0.0;
+      size_t splitIndex=n*0.8;
+      vector<Data> trainData(data.begin(), data.begin()+splitIndex);
+      vector<Data> testData(data.begin()+splitIndex,data.end());
+      //cout<<train_data(trainData,testData,20,20)<<endl;
+      //cout<<trainData.size()<<endl;
+      //cout<<testData.size()<<endl;
+      for (int i=1;i<=30;i++) {
+            for (int j=20;j>=1;j--)
+                  if (bestF1Score<train_data(trainData,testData,i,j)) {
+                        bestF1Score = train_data(trainData,testData,i,j);
+                        //cout<<bestF1Score<<" "<<train_data(trainData,testData,i,j)<<endl;
+                        best_max_depth = i;
+                        best_min_size = j;
                   }
-                  else trainData.push_back(data[i]);
-            }
-            foldSet.push_back(make_pair(trainData,testData));
-      }
-
-      for (int  i=0;i<10;i++) {
-
-            for (int j=0;j<10;j++) {
-                  double sumKtrain=0;
-                  for (auto x:foldSet) {
-                        sumKtrain+=train_data(x.first,x.second,j,i);
-                  }
-                  if (sumKtrain>best_solution) {
-                        best_solution = sumKtrain;
-                        best_max_depth = j;
-                        best_min_size = i;
-                  }
-            }
 
       }
-      cout << "Best solution: " << best_solution << endl;
+      cout << "Best F1: " << bestF1Score << endl;
       cout << "Best max_depth: " << best_max_depth << endl;
       cout << "Best min_size: " << best_min_size << endl;
-      return make_tuple(best_solution,best_max_depth,best_min_size);
+      return make_tuple(best_solution, best_max_depth, best_min_size);
 }
+
 
 int main(){
       vector<Data> data=read_data("train.txt");
-      for (int k=7;k<=10;k++) {
-            tuple<double,int,int> solution=crossValidation(data,k);
-            cout<<"Best solution: "<<get<0>(solution)<<endl;
-            cout<<"Best max_depth: "<<get<1>(solution)<<endl;
-            cout<<"Best min_size: "<<get<2>(solution)<<endl;
+      //cout<<train_data(data,data,20,1)<<endl;
+      for (int i=0;i<100;i++) {
+            tuple<double,int,int>result=crossValidation(data);
+
       }
+      //cout<<get<0>(result)<<endl;
+      //cout<<get<1>(result)<<endl;
+      //cout<<get<2>(result)<<endl;
+      return 0;
+
+      for (Data d:data) {
+            cout<<d.label<<" "<<d.feature[0]<<" "<<d.feature[1]<<" "<<d.feature[2]<<" "<<d.feature[3]<<endl;
+      }
+
+      cout<<train_data(data,data,5,5);
       return 0;
 }
